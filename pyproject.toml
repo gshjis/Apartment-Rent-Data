@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "apartment-rent-data"
+version = "0.1.0"
+description = ""
+authors = ["gshjis <ilya.togan@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+numpy = "^2.4.3"
+polars = "^1.39.2"
+matplotlib = "^3.10.8"
+seaborn = "^0.13.2"
+jupyter = "^1.1.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
