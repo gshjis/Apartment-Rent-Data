@@ -1,3 +1,7 @@
 data
 .venv
 poetry.lock
+outputs
+__pycache__
+.mypy_cache
+.vscode
