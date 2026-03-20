@@ -12,7 +12,28 @@ polars = "^1.39.2"
 matplotlib = "^3.10.8"
 seaborn = "^0.13.2"
 jupyter = "^1.1.1"
+config = {path = "paсkages/config", develop = true}
+utils = {path = "paсkages/utils", develop = true}
+scipy = "^1.17.1"
+pandas = "^3.0.1"
+preprocessing = {path = "paсkages/preprocessing", develop = true}
+prettytable = "^3.17.0"
+analysis = {path = "paсkages/analysis", develop = true}
+scikit-learn = "^1.8.0"
+catboost = "^1.2.10"
+statsmodels = "^0.14.6"
+scikit-posthocs = "^0.12.0"
 
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.19.1"
+
+[tool.mypy]
+ignore_missing_imports = true
+mypy_path = ["src", "paсkages"]  # добавить пути
+
+[[tool.mypy.overrides]]
+module = ["config.*", "utils.*"]
+ignore_missing_imports = true
 
 [build-system]
 requires = ["poetry-core"]
