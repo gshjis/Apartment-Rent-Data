@@ -8,3 +8,4 @@ from .state_price_significance import (
     kruskal_state_city_homogeneity,
     dunn_posthoc_for_heterogeneous_states,
 )
+from .LDA import LdaTopicModel

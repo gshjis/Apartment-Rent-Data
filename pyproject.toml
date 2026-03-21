@@ -23,6 +23,8 @@ scikit-learn = "^1.8.0"
 catboost = "^1.2.10"
 statsmodels = "^0.14.6"
 scikit-posthocs = "^0.12.0"
+gensim = "^4.4.0"
+nltk = "^3.9.3"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.19.1"
