@@ -78,6 +78,101 @@ def price_significance_by_state(
     }
 
 
+def report_price_significance_by_state(
+    table: pd.DataFrame,
+    *,
+    state_col: str = "state",
+    price_col: str = "price",
+    alpha: float = 0.05,
+    use_nonparametric: bool = True,
+    plot: bool = True,
+    top_n: int | None = None,
+):
+    """Красиво выводит результат теста различий цены между state.
+
+    Печатает:
+    - итоговую таблицу (state-level test)
+    - при `plot=True` — boxplot распределений `price` по state
+    - при `top_n` — ограничивает график топ-N штатов по медиане
+
+    Возвращает dict с тем же содержимым, что `price_significance_by_state`,
+    плюс агрегированные статистики для печати.
+    """
+
+    from matplotlib import pyplot as _plt
+
+    res = price_significance_by_state(
+        table,
+        state_col=state_col,
+        price_col=price_col,
+        alpha=alpha,
+        use_nonparametric=use_nonparametric,
+    )
+
+    df = table[[state_col, price_col]].copy()
+    df[price_col] = pd.to_numeric(df[price_col], errors="coerce")
+    df = df[pd.notna(df[state_col])]
+    df = df[pd.notna(df[price_col])]
+
+    grouped = df.groupby(state_col, sort=False)[price_col]
+    stats = grouped.agg(["count", "median", "mean", "std"]).reset_index()
+    stats = stats.rename(columns={state_col: "state"})
+
+    if top_n is not None:
+        stats = stats.sort_values("median", ascending=False).head(int(top_n))
+        df_plot = df[df[state_col].isin(stats["state"])].copy()
+    else:
+        df_plot = df
+
+    summary_table = pd.DataFrame(
+        {
+            "test": [res["test"]],
+            "statistic": [res["statistic"]],
+            "p_value": [res["p_value"]],
+            "alpha": [res["alpha"]],
+            "significant": [res["significant"]],
+            "n_groups": [res["n_groups"]],
+        }
+    )
+
+    # вывод как pandas таблицы
+    summary_table = summary_table.copy()
+    stats = stats.sort_values("median", ascending=False).reset_index(drop=True)
+
+    if plot:
+        fig, ax = _plt.subplots(1, 1, figsize=(14, 5))
+        ax.boxplot(
+            [
+                df_plot.loc[df_plot[state_col] == s, price_col].to_numpy(dtype=float)
+                for s in stats.sort_values("median", ascending=False)["state"].tolist()
+            ],
+            labels=[
+                str(s)
+                for s in stats.sort_values("median", ascending=False)["state"].tolist()
+            ],
+            showfliers=False,
+        )
+        ax.set_title(f"{price_col} by {state_col} (boxplot)")
+        ax.set_xlabel(state_col)
+        ax.set_ylabel(price_col)
+        ax.tick_params(axis="x", rotation=45)
+        ax.grid(True, axis="y", alpha=0.3)
+        _plt.tight_layout()
+        _plt.show()
+
+    # В Jupyter вернётся как pandas.DataFrame (красиво), в обычном окружении — через print.
+    try:
+        from IPython.display import display  # type: ignore
+
+        display(summary_table)
+        display(stats)
+    except Exception:
+        print(summary_table.to_string(index=False))
+        print(stats.to_string(index=False))
+
+    return {**res, "state_stats": stats, "summary_table": summary_table}
+
+
 def kruskal_state_city_homogeneity(
     table: pd.DataFrame,
     *,
@@ -378,13 +473,21 @@ def dunn_posthoc_for_heterogeneous_states(
         st_cand = st_all[st_all[city_col].isin(cand_cities)]
         candidate_share_by_state[st] = float(len(st_cand) / denom)
 
+    # Для удобства: превращаем результаты в единую pandas-таблицу.
+    # Каждая строка = кандидат (state, city). Если нужно — можно агрегировать по state.
+    candidates_df = pd.DataFrame(candidates_summary)
+    if len(candidates_df) > 0:
+        candidates_df["candidate_share_by_state"] = candidates_df[state_col].map(
+            candidate_share_by_state
+        )
+
     return {
+        "candidates": candidates_df,
         "alpha": float(alpha),
         "epsilon2_threshold": float(epsilon2_threshold),
         "matrix_by_state": matrix_by_state,
         "significant_cities_by_state": significant_cities_by_state,
         "candidates_cities_by_state": candidates_cities_by_state,
-        "candidates_summary": pd.DataFrame(candidates_summary),
         "candidate_share_by_state": candidate_share_by_state,
         "heterogeneous_states": heterogeneous[state_col].tolist(),
     }
