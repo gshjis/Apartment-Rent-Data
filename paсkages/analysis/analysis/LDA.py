@@ -162,7 +162,9 @@ class LdaTopicModel:
             text = re.sub(r"\s+", " ", text).strip()
         if self.remove_punctuation:
             text = re.sub(r"[^\w\s]", " ", text)
-            text = re.sub(r"\s+", " ", text).strip()
+        # Remove numbers
+        text = re.sub(r"\d+", " ", text)
+        text = re.sub(r"\s+", " ", text).strip()
         return text
 
     def _tokenize(self, text: str) -> list[str]:
