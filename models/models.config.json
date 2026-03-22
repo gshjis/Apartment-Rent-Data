@@ -1,0 +1,21 @@
+{
+  "text_column": "body",
+  "n_topics": 15,
+  "lowercase": true,
+  "strip_extra_spaces": true,
+  "remove_punctuation": true,
+  "stem": true,
+  "lemmatize": false,
+  "min_token_length": 3,
+  "stopwords_lang": "english",
+  "min_df": 2,
+  "max_df": 0.5,
+  "min_count": null,
+  "max_count": null,
+  "random_state": 42,
+  "passes": 10,
+  "alpha": 0.01,
+  "eta": 0.01,
+  "max_features": null,
+  "empty_docs_ratio_": null
+}

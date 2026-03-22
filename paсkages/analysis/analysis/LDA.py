@@ -6,6 +6,8 @@ from typing import Any, Literal
 import numpy as np
 import pandas as pd
 
+from logger import log_success, logger
+
 try:  # optional heavy deps
     import gensim
     from gensim import corpora
@@ -184,6 +186,10 @@ class LdaTopicModel:
         return token
 
     def _preprocess_dataset(self) -> list[list[str]]:
+        logger.info(
+            "LdaTopicModel: preprocessing start (text_column=%s, n_rows_estimate=unknown)",
+            self.text_column,
+        )
         self._ensure_required_columns()
         stopwords_set = self._get_stopwords()
         tokens_all: list[list[str]] = []
@@ -200,6 +206,7 @@ class LdaTopicModel:
             toks = [t for t in toks if t and t not in stopwords_set]
             tokens_all.append(toks)
 
+        log_success(logger, "LdaTopicModel: preprocessing completed")
         return tokens_all
 
     def _apply_token_frequency_filters(
@@ -252,6 +259,11 @@ class LdaTopicModel:
         self._prepared = True
 
     def fit(self) -> Any:
+        logger.info(
+            "LdaTopicModel: fit start (n_topics=%d, passes=%d)",
+            self.n_topics,
+            self.passes,
+        )
         if not self._prepared:
             self._prepare()
         if self.dictionary is None or self.corpus is None:
@@ -267,6 +279,7 @@ class LdaTopicModel:
             eta=self.eta,
         )
         self.model = model
+        log_success(logger, "LdaTopicModel: fit completed")
         return model
 
     def get_top_words_per_topic(self, n_words: int = 10) -> dict[int, list[str]]:
@@ -289,6 +302,8 @@ class LdaTopicModel:
         if self.text_column not in dataset.columns:
             raise ValueError(f"Отсутствует текстовая колонка: {self.text_column}")
 
+        logger.info("LdaTopicModel: transform start (n_rows=%d)", len(dataset))
+
         stopwords_set = self._get_stopwords()
         texts = dataset[self.text_column].fillna("").astype(str).tolist()
         token_docs: list[list[str]] = []
@@ -309,6 +324,8 @@ class LdaTopicModel:
             doc_topics = self.model.get_document_topics(bow, minimum_probability=0.0)
             for tid, prob in doc_topics:
                 mat[i, int(tid)] = float(prob)
+
+        log_success(logger, "LdaTopicModel: transform completed")
         return mat
 
     def topics_price_correlation(
@@ -324,6 +341,13 @@ class LdaTopicModel:
         return_both_pvalues: bool = True,
     ) -> pd.DataFrame:
         """Корреляция вероятностей тем по документам с ценой."""
+
+        logger.info(
+            "LdaTopicModel: correlation start (price_column=%s, method=%s, alpha=%s)",
+            price_column,
+            correlation_method,
+            alpha,
+        )
 
         if self.model is None or self.dictionary is None:
             raise RuntimeError("Сначала вызовите fit().")
@@ -391,6 +415,8 @@ class LdaTopicModel:
         """Сохранение gensim-модели и словаря."""
         if self.model is None or self.dictionary is None:
             raise RuntimeError("Сначала вызовите fit().")
+
+        logger.info("LdaTopicModel: save start (prefix=%s)", prefix)
         self.model.save(prefix + ".lda")
         self.dictionary.save(prefix + ".dict")
 
@@ -420,9 +446,13 @@ class LdaTopicModel:
         with open(prefix + ".config.json", "w", encoding="utf-8") as f:
             json.dump(cfg, f, ensure_ascii=False, indent=2)
 
+        log_success(logger, f"LdaTopicModel: saved to '{prefix}*'")
+
     @classmethod
     def load(cls, prefix: str, dataset: pd.DataFrame | None = None) -> "LdaTopicModel":
         import json
+
+        logger.info("LdaTopicModel: load start (prefix=%s)", prefix)
 
         with open(prefix + ".config.json", "r", encoding="utf-8") as f:
             cfg = json.load(f)
@@ -459,4 +489,6 @@ class LdaTopicModel:
         obj.dictionary = corpora.Dictionary.load(prefix + ".dict")
         obj.model = LdaModel.load(prefix + ".lda")
         obj._prepared = True
+
+        log_success(logger, f"LdaTopicModel: loaded from '{prefix}*'")
         return obj
