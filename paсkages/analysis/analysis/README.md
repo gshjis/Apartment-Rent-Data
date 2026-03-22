@@ -17,17 +17,13 @@
 
 ## Требования
 
-- Python 3.7+
+- Python 3.12+
 - pandas
 - numpy
 - gensim
 - nltk (для стоп-слова, стемминга/лемматизации)
 - scipy (для вычисления корреляции и p-значения)
 
-Установить зависимости можно через:
-```bash
-pip install pandas numpy gensim nltk scipy
-```
 
 ## Использование
 
@@ -161,8 +157,3 @@ loaded_model = LdaTopicModel.load('/path/to/model/lda_model', dataset=df)
 - Методы `fit`, `transform`, `topics_price_correlation` требуют предварительного вызова `fit()` (или загрузки через `load`).
 - При фильтрации через `min_df`/`max_df` используется gensim's `filter_extremes` с параметрами `no_below` и `no_above`. Если `min_df` задан как float, он преобразуется в int как безопасный fallback (так как без знания общего числа документов невозможно вычислить абсолютную частоту). Аналогично для `max_df`.
 - Параметры `min_count` и `max_count` пока не реализованы отдельно; используйте `min_df`/`max_df` для фильтрации по частоте.
-
-## Ссылки
-
-- Gensim LDA documentation: https://radimrehurek.com/gensim/models/ldamodel.html
-- NLTK documentation: https://www.nltk.org/
