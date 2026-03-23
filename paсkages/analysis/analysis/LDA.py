@@ -3,10 +3,13 @@ from __future__ import annotations
 import re
 from typing import Any, Literal
 
+import logger
 import numpy as np
 import pandas as pd
 
-from logger import log_success, logger
+from logger import log_success, get_logger
+
+logger = get_logger(__name__)
 
 try:  # optional heavy deps
     import gensim

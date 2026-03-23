@@ -28,6 +28,7 @@ nltk = "^3.9.3"
 models = {path = "paсkages/models", develop = true}
 xgboost = "^3.2.0"
 logger = {path = "paсkages/logger", develop = true}
+experiments = {path = "paсkages/experiments", develop = true}
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.19.1"

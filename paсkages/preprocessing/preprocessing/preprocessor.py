@@ -16,7 +16,7 @@ import pandas as pd
 from analysis import LdaTopicModel
 from analysis import dunn_posthoc_for_heterogeneous_states
 from logger import log_success
-from logger.logger import get_logger
+from logger import get_logger
 
 
 logger = get_logger(__name__)
@@ -169,12 +169,8 @@ class Preprocessor:
         """Выявляет аномальные города и добавляет флаги/типы."""
 
         out = df.copy()
-        logger.info(
-            "fit_anomaly_cities: start (city_col=%s, state_col=%s, min_points_city=%d)",
-            city_col,
-            state_col,
-            min_points_city,
-        )
+
+        # Создаём city_state
         out["city_state"] = (
             out[city_col].fillna("").astype(str)
             + "|"
@@ -198,44 +194,47 @@ class Preprocessor:
 
         self.anomaly_cities = []
         self.anomaly_types = {}
-        if isinstance(candidates, dict):
-            # Функция возвращает словари по state.
-            # Формат верхнего уровня не фиксирован, поэтому делаем максимально совместимую агрегацию.
-            significant_by_state = candidates.get("significant_cities_by_state", {})
-            candidates_summary = candidates.get("candidates_summary", [])
 
-            # список аномальных city_state (агрегируем по state)
-            anomaly_list: list[str] = []
-            for _, lst in (significant_by_state or {}).items():
-                anomaly_list.extend([str(x) for x in (lst or [])])
-            self.anomaly_cities = list(dict.fromkeys(anomaly_list))
+        # Получаем список аномальных городов из candidates.
+        # Внутри dunn_posthoc_for_heterogeneous_states формируются:
+        # - значимые кандидаты (significant_cities_by_state)
+        # - сводная таблица кандидатов после фильтраций (candidates_summary)
+        # Чтобы совпадать с логикой порогов по отклонению (median_deviation_threshold),
+        # используем candidates_summary, а не «сырые» significant_cities_by_state.
+        candidates_summary = candidates.get("candidates_summary", [])
+        for row in candidates_summary or []:
+            if not isinstance(row, dict):
+                continue
+            city = row.get("city_state")
+            if city is None:
+                continue
+            self.anomaly_cities.append(str(city))
 
-            # типизация по dev (если есть в summary)
-            if isinstance(candidates_summary, list):
-                for row in candidates_summary:
-                    if not isinstance(row, dict):
-                        continue
-                    city = row.get("city_state")
-                    dev = row.get("median_deviation")
-                    if city is None or dev is None:
-                        continue
-                    city_s = str(city)
-                    try:
-                        dev_f = float(dev)
-                    except Exception:
-                        continue
-                    self.anomaly_types[city_s] = "premium" if dev_f > 0 else "budget"
+        # Убираем дубликаты
+        self.anomaly_cities = list(dict.fromkeys(self.anomaly_cities))
 
-            logger.info(
-                "fit_anomaly_cities: found %d anomaly candidates",
-                len(self.anomaly_cities),
-            )
+        # Заполняем anomaly_types по сравнению медиан города и состояния.
+        # Это не влияет на состав anomaly_cities, но даёт корректную метку premium/budget.
+        if self.anomaly_cities:
+            state_medians = out.groupby(state_col)[price_col].median()
+            for city in self.anomaly_cities:
+                city_data = out[out["city_state"] == city]
+                if len(city_data) == 0:
+                    continue
+                city_median = city_data[price_col].median()
+                state = city.split("|")[-1]  # city_state = "city|state"
+                if state in state_medians:
+                    state_median = state_medians[state]
+                    self.anomaly_types[city] = (
+                        "premium" if city_median > state_median else "budget"
+                    )
 
-            log_success(
-                logger,
-                f"fit_anomaly_cities: detected {len(self.anomaly_cities)} anomaly candidates",
-            )
+        logger.info(
+            "fit_anomaly_cities: found %d anomaly candidates with types",
+            len(self.anomaly_cities),
+        )
 
+        # Добавляем колонки в датасет
         anomaly_set = set(self.anomaly_cities)
         out["is_anomaly"] = out["city_state"].apply(
             lambda x: 1 if str(x) in anomaly_set else 0
@@ -243,6 +242,7 @@ class Preprocessor:
         out["anomaly_type"] = out["city_state"].apply(
             lambda x: self.anomaly_types.get(str(x), "normal")
         )
+
         return out
 
     def transform_anomaly_cities(self, df: pd.DataFrame) -> pd.DataFrame:
